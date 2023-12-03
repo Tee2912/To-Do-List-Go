@@ -1,0 +1,58 @@
+syntax="proto3";
+
+package proto;
+
+option go_package = "./todo";
+ 
+message ToDo {
+   string name = 1;
+   string description = 2;
+   bool status = 3;
+   string id = 4;
+}
+
+message CreateToDoReq {
+    ToDo todo = 1;
+}
+
+message CreateToDoRes {
+    ToDo todo = 1; 
+}
+
+message UpdateToDoReq {
+    ToDo todo = 1;
+}
+
+message UpdateToDoRes {
+    ToDo todo = 1;
+}
+
+message ReadToDoReq {
+    string id = 1;
+}
+
+message ReadToDoRes {
+    ToDo todo = 1;
+}
+
+message DeleteToDoReq {
+    string id = 1;
+}
+
+message DeleteToDoRes {
+    bool success = 1;
+}
+
+message ListToDosReq {}
+
+message ListToDosRes {
+    ToDo todo = 1;
+}
+ 
+service TodoService {
+    rpc CreateToDo(CreateToDoReq) returns (CreateToDoRes);
+    rpc ReadToDo(ReadToDoReq) returns (ReadToDoRes);
+    rpc UpdateToDo(UpdateToDoReq) returns (UpdateToDoRes);
+    rpc DeleteToDo(DeleteToDoReq) returns (DeleteToDoRes);
+    rpc ListToDos(ListToDosReq) returns (stream ListToDosRes);
+}
