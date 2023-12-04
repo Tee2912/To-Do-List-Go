@@ -6,7 +6,7 @@ import (
 
 	"github.com/Tee2912/To-Do-List-Go/api/proto/todolist"
 	"github.com/Tee2912/To-Do-List-Go/db"
-	"github.com/Tee2912/To-Do-List-Go/db/todo/models"
+	"github.com/Tee2912/To-Do-List-Go/db/models"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"

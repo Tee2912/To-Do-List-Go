@@ -1,8 +1,9 @@
 package mapper
 
 import (
+	"github.com/Tee2912/To-Do-List-Go/api/proto/auth"
 	"github.com/Tee2912/To-Do-List-Go/api/proto/todolist"
-	"github.com/Tee2912/To-Do-List-Go/db/todo/models"
+	"github.com/Tee2912/To-Do-List-Go/db/models"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -21,7 +22,7 @@ func TodoProtobufToTodoModel(todo *todolist.ToDo) (*models.ToDo, error) {
 	return dbTodo, nil
 }
 
-// TodoModelToTodoProtobuf converts a MongoDB Product model to a Protobuf Todo message.
+// TodoModelToTodoProtobuf converts a MongoDB Todo model to a Protobuf Todo message.
 func TodoModelToTodoProtobuf(dbProduct *models.ToDo) (*todolist.ToDo, error) {
 	todo := &todolist.ToDo{
 		Id:          dbProduct.Id,
@@ -46,4 +47,14 @@ func TodoModelListToListTodosResponse(dbProducts []*models.ToDo) (*todolist.List
 	}
 	response.Todos = todos
 	return response, nil
+}
+
+// UserProtobufToUserModel converts a Protobuf user message to a MongoDB user model.
+func UserProtobufToUserModel(user *auth.RegisterRequest) (*models.User, error) {
+	dbUser := &models.User{
+		Username: user.Username,
+		Password: user.Password,
+	}
+
+	return dbUser, nil
 }

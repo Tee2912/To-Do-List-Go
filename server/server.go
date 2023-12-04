@@ -2,29 +2,58 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"net/http"
 
+	"github.com/Tee2912/To-Do-List-Go/api/proto/auth"
 	"github.com/Tee2912/To-Do-List-Go/api/proto/todolist"
 	"github.com/Tee2912/To-Do-List-Go/db"
 	"github.com/Tee2912/To-Do-List-Go/db/todo"
+	"github.com/Tee2912/To-Do-List-Go/db/user"
 	"github.com/Tee2912/To-Do-List-Go/mapper"
+	"github.com/Tee2912/To-Do-List-Go/utils"
 	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
+const (
+	clientID     = ""
+	clientSecret = ""
+)
+
 type server struct {
 	todolist.UnimplementedTodoServiceServer
-	GrpcSrv *grpc.Server
-	db      *db.MongoDb
+	auth.UnimplementedAuthServiceServer
+	GrpcSrv     *grpc.Server
+	oauthConfig *oauth2.Config
+	db          *db.MongoDb
 }
 
 func New(db *db.MongoDb) *server {
+
+	// Set up GitHub OAuth config
+	oauthConfig := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  "http://localhost:4000/callback", // Update with your callback URL
+		Scopes:       []string{"user:email"},
+		Endpoint:     oauth2.Endpoint{AuthURL: "https://github.com/login/oauth/authorize", TokenURL: "https://github.com/login/oauth/access_token"},
+	}
+
 	grpcServer := grpc.NewServer()
 	srv := &server{
-		GrpcSrv: grpcServer,
-		db:      db}
+		GrpcSrv:     grpcServer,
+		oauthConfig: oauthConfig,
+		db:          db}
 	todolist.RegisterTodoServiceServer(grpcServer, srv)
+	auth.RegisterAuthServiceServer(grpcServer, srv)
 	reflection.Register(grpcServer)
+
+	http.HandleFunc("/login", srv.handleLogin)
+	http.HandleFunc("/callback", srv.handleOAuthCallback)
 	return srv
 }
 
@@ -97,4 +126,62 @@ func (s *server) ListToDos(ctx context.Context, in *todolist.ListToDosReq) (*tod
 		return nil, err
 	}
 	return protoResponse, nil
+}
+
+// Register new user
+func (s *server) Register(ctx context.Context, in *auth.RegisterRequest) (*auth.RegisterResponse, error) {
+	password, err := utils.HashPassword(in.Password)
+	in.Password = password
+	newUser, err := mapper.UserProtobufToUserModel(in)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := user.SignUpUser(ctx, s.db, newUser)
+	if err != nil {
+		return nil, err
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+// Login new user
+func (s *server) Login(ctx context.Context, in *auth.LoginRequest) (*auth.LoginResponse, error) {
+	user, err := user.Get(ctx, s.db, in)
+	valid := utils.CheckPasswordHash(in.Password, user.Password)
+	if !valid {
+		log.Println("Wrong password")
+		return &auth.LoginResponse{Message: "Failed to login"}, errors.New("Wrong password")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &auth.LoginResponse{Message: "Login Successfully"}, nil
+}
+
+// handleLogin initiates the GitHub OAuth login process
+func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	url := s.oauthConfig.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+}
+
+// handleOAuthCallback handles the callback from GitHub after successful login
+func (s *server) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+
+	// Exchange the code for an access token
+	token, err := s.oauthConfig.Exchange(context.Background(), code)
+	if err != nil {
+		http.Error(w, "Failed to exchange code for token", http.StatusInternalServerError)
+		return
+	}
+	fmt.Print(token)
+
+	fmt.Fprintf(w, "Login successful!")
 }
