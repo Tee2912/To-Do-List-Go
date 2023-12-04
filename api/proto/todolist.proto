@@ -1,8 +1,7 @@
 syntax="proto3";
 
-package proto;
-
-option go_package = "./todo";
+package todolist;
+option go_package = "github.com/Tee2912/To-Do-List-Go/api/proto/todolist";
  
 message ToDo {
    string name = 1;
@@ -40,19 +39,19 @@ message DeleteToDoReq {
 }
 
 message DeleteToDoRes {
-    bool success = 1;
+    string result = 1;
 }
 
 message ListToDosReq {}
 
 message ListToDosRes {
-    ToDo todo = 1;
+     repeated ToDo todos = 1;
 }
  
 service TodoService {
-    rpc CreateToDo(CreateToDoReq) returns (CreateToDoRes);
-    rpc ReadToDo(ReadToDoReq) returns (ReadToDoRes);
-    rpc UpdateToDo(UpdateToDoReq) returns (UpdateToDoRes);
+    rpc CreateToDo(ToDo) returns (ToDo);
+    rpc ReadToDo(ReadToDoReq) returns (ToDo);
+    rpc UpdateToDo(ToDo) returns (ToDo);
     rpc DeleteToDo(DeleteToDoReq) returns (DeleteToDoRes);
-    rpc ListToDos(ListToDosReq) returns (stream ListToDosRes);
+    rpc ListToDos(ListToDosReq) returns (ListToDosRes);
 }

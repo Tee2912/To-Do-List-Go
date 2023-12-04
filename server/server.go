@@ -12,54 +12,87 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-// server implements the ProductCatalogServiceServer interface.
-// It handles the gRPC requests and delegates the actual processing to
-// the corresponding functions in the product package.
 type server struct {
-	todolist.UnimplementedProductCatalogServiceServer
+	todolist.UnimplementedTodoServiceServer
 	GrpcSrv *grpc.Server
 	db      *db.MongoDb
 }
 
-// New creates a new instance of the server with the provided database client.
-// It sets up the gRPC server, registers the product catalog service,
-// and initializes reflection for gRPC server debugging.
 func New(db *db.MongoDb) *server {
 	grpcServer := grpc.NewServer()
 	srv := &server{
 		GrpcSrv: grpcServer,
 		db:      db}
-	todolist.RegisterProductCatalogServiceServer(grpcServer, srv)
+	todolist.RegisterTodoServiceServer(grpcServer, srv)
 	reflection.Register(grpcServer)
 	return srv
 }
 
-// CreateProduct creates a new product in the catalog.
-// It delegates the actual creation logic to the product package's Create function.
-func (s *server) CreateProduct(ctx context.Context, in *todolist.Product) (*todolist.Product, error) {
-	newProduct, err := mapper.ProductProtobufToProductModel(in)
+// CreateToDo creates a new todo
+func (s *server) CreateToDo(ctx context.Context, in *todolist.ToDo) (*todolist.ToDo, error) {
+	newTodo, err := mapper.TodoProtobufToTodoModel(in)
 	if err != nil {
 		return nil, err
 	}
-	createdProduct, err := todo.Create(ctx, s.db, newProduct)
+
+	createdTodo, err := todo.Create(ctx, s.db, newTodo)
 	if err != nil {
 		return nil, err
 	}
-	protoResponse, err := mapper.ProductModelToProductProtobuf(createdProduct)
+	protoResponse, err := mapper.TodoModelToTodoProtobuf(createdTodo)
 	if err != nil {
 		return nil, err
 	}
 	return protoResponse, nil
 }
 
-// GetProduct retrieves a product by its ID from the catalog.
-// It delegates the actual retrieval logic to the product package's Get function.
-func (s *server) GetProduct(ctx context.Context, in *todolist.GetProductRequest) (*todolist.Product, error) {
-	product, err := todo.Get(ctx, s.db, in)
+// ReadToDo retrieves a todo by its ID
+func (s *server) ReadToDo(ctx context.Context, in *todolist.ReadToDoReq) (*todolist.ToDo, error) {
+	todo, err := todo.Get(ctx, s.db, in)
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting product with uuid %s", in.Uuid)
+		return nil, errors.Wrapf(err, "getting todo with id %s", in.Id)
 	}
-	protoResponse, err := mapper.ProductModelToProductProtobuf(product)
+	protoResponse, err := mapper.TodoModelToTodoProtobuf(todo)
+	if err != nil {
+		return nil, err
+	}
+	return protoResponse, nil
+}
+
+// UpdateToDo updates an existing todo
+func (s *server) UpdateToDo(ctx context.Context, in *todolist.ToDo) (*todolist.ToDo, error) {
+	todooUpdate, err := mapper.TodoProtobufToTodoModel(in)
+	if err != nil {
+		return nil, err
+	}
+	updatedTodo, err := todo.Update(ctx, s.db, todooUpdate)
+	if err != nil {
+		return nil, err
+	}
+	protoResponse, err := mapper.TodoModelToTodoProtobuf(updatedTodo)
+	if err != nil {
+		return nil, err
+	}
+	return protoResponse, nil
+}
+
+// DeleteToDo deletes a todo
+func (s *server) DeleteToDo(ctx context.Context, in *todolist.DeleteToDoReq) (*todolist.DeleteToDoRes, error) {
+	resp, err := todo.Delete(ctx, s.db, in)
+	if err != nil {
+		return nil, errors.Wrapf(err, "deleting todo with id %s", in.Id)
+	}
+
+	return resp, nil
+}
+
+// ListToDos lists all the todos
+func (s *server) ListToDos(ctx context.Context, in *todolist.ListToDosReq) (*todolist.ListToDosRes, error) {
+	todos, err := todo.List(ctx, s.db, in)
+	if err != nil {
+		return nil, errors.Wrap(err, "listing todos")
+	}
+	protoResponse, err := mapper.TodoModelListToListTodosResponse(todos)
 	if err != nil {
 		return nil, err
 	}
